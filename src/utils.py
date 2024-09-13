@@ -7,7 +7,7 @@ class InsuranceDataUtils:
         self.cleaned_csv_file_path = cleaned_csv_file_path
     
     def load_data(self):
-        # Load data, specifying dtype for columns if needed or using low_memory=False
+        # Load data with specified dtypes
         dtype = {
             'Bank': str,
             'AccountType': str,
@@ -34,16 +34,17 @@ class InsuranceDataUtils:
         columns_to_check = ['Bank', 'AccountType', 'MaritalStatus', 'Gender']
         df_cleaned = df_cleaned.dropna(subset=columns_to_check)
         
-        # Fill missing values with the mean, median, or a specific value
+        # Fill missing values with mode or default values
         df_cleaned['Bank'] = df_cleaned['Bank'].fillna(df_cleaned['Bank'].mode()[0])
         df_cleaned['AccountType'] = df_cleaned['AccountType'].fillna(df_cleaned['AccountType'].mode()[0])
         df_cleaned['Gender'] = df_cleaned['Gender'].fillna(df_cleaned['Gender'].mode()[0])
         df_cleaned['VehicleType'] = df_cleaned['VehicleType'].fillna('Unknown')
         
-        # Fill missing values with a specific date or forward/backward fill
+        # Forward fill for VehicleIntroDate
         df_cleaned['VehicleIntroDate'] = df_cleaned['VehicleIntroDate'].ffill()
         
         return df_cleaned
     
     def save_data(self, df):
         df.to_csv(self.cleaned_csv_file_path, index=False)
+
