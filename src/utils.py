@@ -172,3 +172,143 @@ class InsuranceDataUtils:
             print(corr_matrix)
         else:
             print("No data available for correlation calculation.")
+    def preprocess_data(self):
+        """
+        Preprocesses the DataFrame by renaming columns, converting date columns, 
+        and aggregating data.
+        """
+        # Check and rename 'TransactionMonth' to 'Date'
+        if 'TransactionMonth' not in self.df.columns:
+            raise ValueError("DataFrame must contain a 'TransactionMonth' column.")
+        
+        self.df.rename(columns={'TransactionMonth': 'Date'}, inplace=True)
+        self.df['Date'] = pd.to_datetime(self.df['Date'])
+        
+        # Aggregating data
+        self.df = self.df.groupby('Date').agg({
+            'TotalPremium': 'sum',
+            'TotalClaims': 'sum'
+        }).reset_index()
+
+        # Set 'Date' as index
+        self.df.set_index('Date', inplace=True)
+        
+        # Resample data by month using Month End frequency
+        monthly_data = self.df.resample('ME').agg({
+            'TotalPremium': 'sum',
+            'TotalClaims': 'sum'
+        })
+        
+        # Fill missing values using forward fill
+        monthly_data.ffill(inplace=True)
+
+        # Check for missing values after forward fill
+        missing_values = monthly_data[['TotalPremium', 'TotalClaims']].isnull().sum()
+        if missing_values.any():
+            print("Missing values found after filling:")
+            print(missing_values)
+
+        # Calculate monthly changes
+        monthly_data['MonthlyTotalPremiumChange'] = monthly_data['TotalPremium'].pct_change()
+        monthly_data['MonthlyTotalClaimsChange'] = monthly_data['TotalClaims'].pct_change()
+        
+        # Check for missing values in changes
+        missing_changes = monthly_data[['MonthlyTotalPremiumChange', 'MonthlyTotalClaimsChange']].isnull().sum()
+        if missing_changes.any():
+            print("Missing values found in MonthlyTotalPremiumChange or MonthlyTotalClaimsChange after calculating changes:")
+            print(missing_changes)
+        
+        # Reset index to bring 'Date' back as a column
+        monthly_data.reset_index(inplace=True)
+        
+        # Debug: Print column names to ensure changes are added
+        print("Columns after preprocessing:")
+        print(monthly_data.columns)
+
+        self.df = monthly_data
+
+    def compare_data(self):
+        """
+        Compares trends in insurance cover type, premium, etc., across geographic regions.
+        """
+        # Strip any leading or trailing spaces from column names
+        self.df.columns = self.df.columns.str.strip()
+
+        # Verify that 'Country' column exists
+        if 'Country' not in self.df.columns:
+            raise ValueError("DataFrame must contain a 'Country' column.")
+        
+        # Verify the data type of 'Country' column
+        if self.df['Country'].dtype != 'object':
+            raise ValueError("'Country' column must be of type 'object' (string).")
+
+        # Ensure 'Date' is in datetime format
+        if not pd.api.types.is_datetime64_any_dtype(self.df['Date']):
+            self.df['Date'] = pd.to_datetime(self.df['Date'])
+
+        # Aggregating total premiums by 'Country' and 'Date'
+        geo_trends = self.df.groupby(['Country', pd.Grouper(freq='M')])['TotalPremium'].sum().unstack()
+
+        # Plotting trends
+        plt.figure(figsize=(12, 6))
+        for country in geo_trends.columns:
+            plt.plot(geo_trends.index, geo_trends[country], label=country)
+
+        plt.title('Trends in Total Premiums by Country')
+        plt.xlabel('Month')
+        plt.ylabel('Total Premium')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+    def detect_outliers(self):
+        """
+        Uses box plots to detect outliers in numerical data.
+        """
+        numeric_columns = self.df.select_dtypes(include=['number']).columns
+
+        plt.figure(figsize=(14, 7))
+        for i, column in enumerate(numeric_columns, 1):
+            plt.subplot(3, 4, i)
+            sns.boxplot(y=self.df[column])
+            plt.title(f'Boxplot of {column}')
+
+        plt.tight_layout()
+        plt.show()
+
+    def visualize_data(self):
+        """
+        Produces 3 creative and beautiful plots that capture key insights.
+        """
+        # Ensure necessary columns exist
+        required_columns = ['TotalPremium', 'TotalClaims', 'MonthlyTotalPremiumChange', 'MonthlyTotalClaimsChange']
+        missing_cols = [col for col in required_columns if col not in self.df.columns]
+        if missing_cols:
+            raise ValueError(f"Missing required columns: {', '.join(missing_cols)}")
+
+        # Plot 1: Monthly Premiums
+        plt.figure(figsize=(12, 6))
+        plt.plot(self.df.index, self.df['TotalPremium'], label='Total Premium', color='blue')
+        plt.title('Monthly Total Premiums')
+        plt.xlabel('Month')
+        plt.ylabel('Total Premium')
+        plt.grid(True)
+        plt.show()
+
+        # Plot 2: Monthly Claims
+        plt.figure(figsize=(12, 6))
+        plt.plot(self.df.index, self.df['TotalClaims'], label='Total Claims', color='red')
+        plt.title('Monthly Total Claims')
+        plt.xlabel('Month')
+        plt.ylabel('Total Claims')
+        plt.grid(True)
+        plt.show()
+
+        # Plot 3: Premium vs Claims Change
+        plt.figure(figsize=(10, 5))
+        plt.scatter(self.df['MonthlyTotalPremiumChange'], self.df['MonthlyTotalClaimsChange'], alpha=0.5)
+        plt.title('Monthly Change: Premium vs Claims')
+        plt.xlabel('Monthly Premium Change')
+        plt.ylabel('Monthly Claims Change')
+        plt.grid(True)
+        plt.show()
