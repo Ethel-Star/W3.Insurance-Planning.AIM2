@@ -229,32 +229,32 @@ class InsuranceDataUtils:
 
     def compare_data(self):
         """
-        Compares trends in insurance cover type, premium, etc., across geographic regions.
+        Compares trends in insurance cover type, premium, etc., across geographic regions using the 'Province' column.
         """
         # Strip any leading or trailing spaces from column names
         self.df.columns = self.df.columns.str.strip()
 
-        # Verify that 'Country' column exists
-        if 'Country' not in self.df.columns:
-            raise ValueError("DataFrame must contain a 'Country' column.")
+        # Verify that 'Province' column exists
+        if 'Province' not in self.df.columns:
+            raise ValueError("DataFrame must contain a 'Province' column.")
         
-        # Verify the data type of 'Country' column
-        if self.df['Country'].dtype != 'object':
-            raise ValueError("'Country' column must be of type 'object' (string).")
+        # Verify the data type of 'Province' column
+        if self.df['Province'].dtype != 'object':
+            raise ValueError("'Province' column must be of type 'object' (string).")
 
         # Ensure 'Date' is in datetime format
         if not pd.api.types.is_datetime64_any_dtype(self.df['Date']):
             self.df['Date'] = pd.to_datetime(self.df['Date'])
 
-        # Aggregating total premiums by 'Country' and 'Date'
-        geo_trends = self.df.groupby(['Country', pd.Grouper(freq='M')])['TotalPremium'].sum().unstack()
+        # Aggregating total premiums by 'Province' and 'Date'
+        geo_trends = self.df.groupby(['Province', pd.Grouper(freq='M')])['TotalPremium'].sum().unstack()
 
         # Plotting trends
         plt.figure(figsize=(12, 6))
-        for country in geo_trends.columns:
-            plt.plot(geo_trends.index, geo_trends[country], label=country)
+        for province in geo_trends.columns:
+            plt.plot(geo_trends.index, geo_trends[province], label=province)
 
-        plt.title('Trends in Total Premiums by Country')
+        plt.title('Trends in Total Premiums by Province')
         plt.xlabel('Month')
         plt.ylabel('Total Premium')
         plt.legend()
@@ -286,25 +286,18 @@ class InsuranceDataUtils:
         if missing_cols:
             raise ValueError(f"Missing required columns: {', '.join(missing_cols)}")
 
-        # Plot 1: Monthly Premiums
+        # Plot: Monthly Total Premiums and Monthly Total Claims on the same graph
         plt.figure(figsize=(12, 6))
-        plt.plot(self.df.index, self.df['TotalPremium'], label='Total Premium', color='blue')
-        plt.title('Monthly Total Premiums')
+        plt.plot(self.df['Date'], self.df['TotalPremium'], label='Total Premium', color='blue')
+        plt.plot(self.df['Date'], self.df['TotalClaims'], label='Total Claims', color='red')
+        plt.title('Monthly Total Premiums and Total Claims')
         plt.xlabel('Month')
-        plt.ylabel('Total Premium')
+        plt.ylabel('Amount')
+        plt.legend()
         plt.grid(True)
         plt.show()
 
-        # Plot 2: Monthly Claims
-        plt.figure(figsize=(12, 6))
-        plt.plot(self.df.index, self.df['TotalClaims'], label='Total Claims', color='red')
-        plt.title('Monthly Total Claims')
-        plt.xlabel('Month')
-        plt.ylabel('Total Claims')
-        plt.grid(True)
-        plt.show()
-
-        # Plot 3: Premium vs Claims Change
+        # Plot 2: Premium vs Claims Change
         plt.figure(figsize=(10, 5))
         plt.scatter(self.df['MonthlyTotalPremiumChange'], self.df['MonthlyTotalClaimsChange'], alpha=0.5)
         plt.title('Monthly Change: Premium vs Claims')
