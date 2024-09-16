@@ -173,3 +173,48 @@ class InsuranceDataUtils:
             interpretation = "Fail to reject the null hypothesis: No significant differences in margin between postal codes."
         
         print(f"Interpretation: {interpretation}")
+    def preprocess_and_calculate(self):
+        """
+        Filter out rows where Gender is 'Not specified' or 'Unknown',
+        and calculate average TotalClaims by Gender.
+        """
+        # Filter out unwanted rows
+        self.df = self.df[~self.df['Gender'].isin(['Not specified', 'Unknown'])]
+        
+        # Calculate average TotalClaims by Gender
+        self.avg_claims = self.df.groupby('Gender')['TotalClaims'].mean()
+        return self.avg_claims
+
+    def perform_t_test_and_interpret(self):
+        """
+        Perform a Two-Sample T-Test between 'Female' and 'Male' for TotalClaims,
+        and print results and interpretation.
+        """
+        # Ensure that the average claims have been calculated
+        if not hasattr(self, 'avg_claims'):
+            raise ValueError("Average claims not calculated. Please run preprocess_and_calculate first.")
+        
+        # Split data into two groups
+        male_claims = self.df[self.df['Gender'] == 'Male']['TotalClaims']
+        female_claims = self.df[self.df['Gender'] == 'Female']['TotalClaims']
+        
+        # Perform T-Test
+        t_stat, p_value = stats.ttest_ind(male_claims, female_claims, equal_var=False)
+        
+        # Print results
+        print("Average Claims by Gender:")
+        print(self.avg_claims)
+        
+        print("T-Test Results:")
+        print({
+            'T-Statistic': t_stat,
+            'P-Value': p_value
+        })
+        
+        # Interpretation
+        if p_value < 0.05:
+            interpretation = "Reject the null hypothesis: Significant differences in risk between genders."
+        else:
+            interpretation = "Fail to reject the null hypothesis: No significant differences in risk between genders."
+        
+        print(f"Interpretation: {interpretation}")
