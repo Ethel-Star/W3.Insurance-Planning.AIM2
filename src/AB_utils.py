@@ -10,7 +10,7 @@ class InsuranceDataUtils:
         """
         if not isinstance(df, pd.DataFrame):
             raise TypeError("The input must be a pandas DataFrame.")
-        self.df = df
+        self.df = df.copy()
         # A/B Hypothesis Testing
     def categorize_provinces(self, metric_col):
         """
@@ -68,7 +68,7 @@ class InsuranceDataUtils:
             interpretation = "Fail to reject the null hypothesis: No significant differences in risk."
         
         return t_statistic, p_value, interpretation
-
+    
     def print_summary(self, t_statistic, p_value, interpretation):
         """
         Print the summary of the test results.
@@ -77,3 +77,59 @@ class InsuranceDataUtils:
         print(f"P-value: {p_value:.4f}")
         print(f"Interpretation: {interpretation}")
 
+
+    def categorize_postal_codes(self, threshold=10):
+        """
+        Categorize postal codes based on their frequency.
+        Postal codes with occurrences below the threshold are categorized as 'Other'.
+        """
+        
+        # Count occurrences of each postal code
+        postal_code_counts = self.df['PostalCode'].value_counts()
+        
+        # Define a category for postal codes that occur less than the threshold
+        low_frequency_postal_codes = postal_code_counts[postal_code_counts < threshold].index
+        
+        # Use .loc to avoid SettingWithCopyWarning
+        self.df.loc[:, 'PostalCodeCategory'] = self.df['PostalCode'].apply(
+            lambda x: 'Other' if x in low_frequency_postal_codes else x
+        )
+        return self.df
+
+    def analyze(self, threshold=10):
+        """
+        Perform the analysis by categorizing postal codes and running Chi-Square test.
+        """
+        # Step 1: Categorize Postal Codes
+        self.categorize_postal_codes(threshold)
+        
+        # Step 2: Aggregate total claims by postal code category
+        category_claims = self.df.groupby('PostalCodeCategory')['TotalClaims'].sum().reset_index()
+        
+        # Print the aggregated results for review
+        print("Category Claims:")
+        print(category_claims)
+        
+        # Step 3: Perform Chi-Square Test
+        # Create a contingency table
+        contingency_table = pd.crosstab(self.df['PostalCodeCategory'], self.df['TotalClaims'])
+        
+        # Perform Chi-Square Test
+        chi2_stat, p_value, dof, expected = chi2_contingency(contingency_table)
+        
+        # Print Chi-Square Test Results
+        print("Chi-Square Test Results:")
+        print({
+            'Chi-Square Statistic': chi2_stat,
+            'P-Value': p_value,
+            'Degrees of Freedom': dof,
+            'Expected Frequencies': expected
+        })
+        
+        # Interpretation
+        if p_value < 0.05:
+            interpretation = "Reject the null hypothesis: Significant differences in risk based on postal codes."
+        else:
+            interpretation = "Fail to reject the null hypothesis: No significant differences in risk based on postal codes."
+        
+        print(f"Interpretation: {interpretation}")
