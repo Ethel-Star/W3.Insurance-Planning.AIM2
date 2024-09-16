@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 from scipy.stats import ttest_ind, chi2_contingency
+from scipy.stats import f_oneway
+
 class InsuranceDataUtils:
     def __init__(self, df):
         """
@@ -131,5 +133,43 @@ class InsuranceDataUtils:
             interpretation = "Reject the null hypothesis: Significant differences in risk based on postal codes."
         else:
             interpretation = "Fail to reject the null hypothesis: No significant differences in risk based on postal codes."
+        
+        print(f"Interpretation: {interpretation}")
+
+    def analyze_margins_by_postal_code(self, threshold=10):
+        """
+        Analyze margins (profit) by postal code categories."""
+        
+        # Step 1: Categorize postal codes
+        self.categorize_postal_codes(threshold)
+        
+        # Step 2: Calculate margin
+        self.df['Margin'] = self.df['TotalPremium'] - self.df['TotalClaims']
+        
+        # Step 3: Aggregate margins by postal code category
+        category_margin = self.df.groupby('PostalCodeCategory')['Margin'].mean().reset_index()
+        
+        # Print aggregated margins for review
+        print("Category Margins: ")
+        print(category_margin)
+        
+        # Prepare data for statistical tests
+        grouped_data = [group['Margin'].values for name, group in self.df.groupby('PostalCodeCategory')]
+        
+        # Step 4: Perform ANOVA test
+        f_stat, p_value = f_oneway(*grouped_data)
+        
+        # Print test results
+        print("ANOVA Test Results:")
+        print({
+            'F-Statistic': f_stat,
+            'P-Value': p_value
+        })
+        
+        # Interpretation
+        if p_value < 0.05:
+            interpretation = "Reject the null hypothesis: Significant differences in margin between postal codes."
+        else:
+            interpretation = "Fail to reject the null hypothesis: No significant differences in margin between postal codes."
         
         print(f"Interpretation: {interpretation}")
